@@ -1,0 +1,48 @@
+## .gitignore -- Voeg in dit bestand de namen toe van bestanden die niet in
+## het versiebeheersysteem thuis horen. Tekstpatronen (*, ?, ...) kunnen ook.
+
+# Editor backup files
+.*~
+*~
+*.bak
+
+# Virtual machine files
+*.iso
+*.box
+*.ova
+*.vmdk
+
+# Hidden Vagrant-directory
+.vagrant
+
+# MacOS folder customisation
+.DS_store
+
+# Connectivity test logs
+connectiontest*.log
+
+# Keys & Certificates
+# Private keys
+*.key
+*.pem
+
+# Certificate Signing Requests
+*.csr
+
+# Certificates
+*.cer
+*.crt
+*.der
+
+# Keystores
+*.p12
+*.pfx
+*.jks
+
+# SSH keys
+id_rsa*
+id_ed25519*
+id_ecdsa*
+
+# Winclient installers
+src/provisioning/files/winclient/installers/

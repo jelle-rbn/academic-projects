@@ -1,0 +1,317 @@
+# -*- mode: ruby -*-
+# vi: ft=ruby :
+
+require 'rbconfig'
+require 'yaml'
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Default locale for all VMs
+ENV["LC_ALL"] = "en_US.UTF-8"
+
+# Default base box -- can be overridden per host in vagrant-hosts.yml
+DEFAULT_BASE_BOX = 'bento/almalinux-10.1'
+
+# Directory where all provisioning scripts live
+PROVISIONING_SCRIPT_DIR = 'provisioning/'
+
+# Windows provisioning path constants
+WIN_PROVISIONING_LOCAL = 'C:\\provisioning'
+WIN_PROVISIONING_SHARE = 'C:\\vagrant-provisioning'
+
+# Vagrantfile API version (do not change)
+VAGRANTFILE_API_VERSION = '2'
+
+# Internal network name shared by all VMs in local mode.
+# All VMs using the same name are connected to the same virtual switch.
+INTNET_NAME = 't02-localnet'
+
+# Fallback IP for VMs that have no static IP defined (e.g. DHCP-only onsite)
+# when running in internal network mode.
+INTNET_FALLBACK_IP = '192.168.132.130'
+
+# =============================================================================
+# LOAD VAGRANT-HOSTS
+# =============================================================================
+
+HOSTS_FILE = 'vagrant-hosts.yml'
+abort "ERROR: '#{HOSTS_FILE}' not found." unless File.exist?(HOSTS_FILE)
+
+hosts = YAML.load_file(HOSTS_FILE)
+abort "ERROR: '#{HOSTS_FILE}' is empty or invalid." if hosts.nil? || hosts.empty?
+
+# =============================================================================
+# ADAPTER TYPE PROMPT (only during provisioning commands)
+# =============================================================================
+
+PROVISIONING_COMMANDS = %w[up provision reload].freeze
+
+USE_BRIDGE = if PROVISIONING_COMMANDS.any? { |cmd| ARGV.include?(cmd) }
+  puts "\nSelect network adapter type:"
+  puts "  1) Bridged  (HoGent)"
+  puts "  2) Internal (Test)"
+  print "\nEnter choice [1/2]: "
+
+  answer = $stdin.gets.chomp
+  case answer
+  when '1' then true
+  when '2' then false
+  else abort "ERROR: Invalid choice '#{answer}'. Please enter 1 or 2."
+  end
+else
+  # For status, ssh, halt, destroy, etc. the network type is irrelevant
+  # default to false so the file loads cleanly without any prompt.
+  false
+end
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+# Configure VM network setup.
+def network_options(host, use_bridge)
+  options = {}
+
+  if use_bridge
+    # Bridged mode (onsite):
+	#   - Keeps the real VLAN IP and subnet mask from the hosts file
+	#   - Keeps the gateway if defined (used by provisioning scripts for routing)
+	#   - Attaches a bridged (public) adapter so the VM appears on the physical network
+    if host.key?('ip')
+      options[:ip]      = host['ip']
+      options[:netmask] = host['netmask'] || '255.255.255.0'
+      options[:gateway] = host['gateway'] if host.key?('gateway')
+    else
+      options[:type] = 'dhcp'
+    end
+    options[:bridge] = true
+  else
+    # Internal mode (local):
+	#   - Keeps the same IP so nothing else needs to change
+	#   - Widens the netmask to /24 so all VMs share one flat network without a router
+	#   - Drops the gateway -- there is no router in local mode
+	#   - Falls back to INTNET_FALLBACK_IP for VMs that are DHCP-only onsite
+	#   - Attaches all VMs to the same named internal network (virtual switch)
+    if host.key?('ip')
+      options[:ip]      = host['ip']
+      options[:netmask] = '255.255.255.0'
+    else
+      options[:ip]      = INTNET_FALLBACK_IP
+      options[:netmask] = '255.255.255.0'
+    end
+    options[:virtualbox__intnet] = INTNET_NAME
+  end
+
+  options[:mac]         = host['mac'].gsub(/[-:]/, '') if host.key?('mac')
+  options[:auto_config] = host['auto_config']          if host.key?('auto_config')
+
+  options
+end
+
+# Configure synced folders for a VM.
+def configure_synced_folders(vm, host)
+  return if host['localprovisioning'] == true && host['box'] =~ /windows|win/i
+  return unless host.key?('synced_folders')
+  host['synced_folders'].each do |folder|
+    vm.synced_folder folder['src'], folder['dest'], folder['options'] || {}
+  end
+end
+
+# Configure forwarded ports for a VM.
+def configure_forwarded_ports(vm, host)
+  return unless host.key?('forwarded_ports')
+  host['forwarded_ports'].each do |port|
+    vm.network "forwarded_port", guest: port['guest'], host: port['host']
+  end
+end
+
+# Find provisioning scripts. Supports single or multiple stages.
+def find_provisioning_scripts(name, staged = false)
+  scripts = []
+  extensions = ['.sh', '.ps1']
+
+  if staged
+    extensions.each do |ext|
+      i = 1
+      loop do
+        path = "#{PROVISIONING_SCRIPT_DIR}#{name}-stage#{i}#{ext}"
+        if File.exist?(path)
+          scripts << { path: path, name: "#{name}-stage#{i}" }
+          i += 1
+        else
+          break
+        end
+      end
+    end
+  else
+    extensions.each do |ext|
+      path = PROVISIONING_SCRIPT_DIR + name + ext
+      if File.exist?(path)
+        scripts << { path: path, name: name }
+        break
+      end
+    end
+  end
+  scripts
+end
+
+def windows_box?(box_name)
+  box_name.to_s =~ /windows|win/i
+end
+
+# Mount the host provisioning directory into the Windows VM via VirtualBox
+# localprovisioning absent/false  (e.g. winclient)
+#   Mount directly to WIN_PROVISIONING_LOCAL (C:\provisioning).
+#
+# localprovisioning: true  (e.g. windowsdc)
+#   Mount to WIN_PROVISIONING_SHARE (C:\vagrant-provisioning) instead.
+#
+# In both cases all stage scripts dot-source win-config.ps1 from
+# WIN_PROVISIONING_LOCAL (C:\provisioning), so the path is always consistent.
+def configure_win_provisioning_share(node, host)
+  mount_target = host['localprovisioning'] ? WIN_PROVISIONING_SHARE : WIN_PROVISIONING_LOCAL
+  node.vm.synced_folder PROVISIONING_SCRIPT_DIR,
+    mount_target,
+    type:          'virtualbox',
+    mount_options: ['ro']
+end
+
+# =============================================================================
+# VM DEFINITIONS
+# =============================================================================
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  hosts.each do |host|
+    unless host.key?('name')
+      abort "ERROR: A host entry in #{HOSTS_FILE} is missing the required 'name' key."
+    end
+
+    config.vm.define host['name'] do |node|
+
+      # --- Base box ---
+      box_name = host['box'] || DEFAULT_BASE_BOX
+      node.vm.box      = box_name
+      node.vm.box_url  = host['box_url'] if host.key?('box_url')
+      # Resolve the VM hostname with a clear priority order:
+      #   1. Explicit 'hostname' key in vagrant-hosts.yml (e.g. "tftp.infra.local")
+      #   2. Fall back to the required 'name' key         (e.g. "tftp")
+      #
+      # Without this fallback, omitting 'hostname' passes nil to Vagrant, which
+      # it silently ignores -- leaving the VM with the box default ("localhost").
+      # That causes provisioning scripts that call $(hostname) to report
+      # "localhost" instead of the intended machine name.
+      #
+      # Skip the assignment entirely only when 'nohostname: true' is set, which
+      # should be reserved for boxes that manage their own hostname externally
+      # (e.g. domain-joined Windows images).
+      unless host.fetch('nohostname', false)
+        node.vm.hostname = host['hostname'] || host['name']
+      end
+
+      # --- Communicator ---
+      if windows_box?(box_name)
+        node.vm.communicator       = 'winrm'
+        node.winrm.username        = host['winrm_username'] || 'vagrant'
+        node.winrm.password        = host['winrm_password'] || 'vagrant'
+        node.winrm.transport       = :plaintext
+        node.winrm.basic_auth_only = true
+        node.winrm.retry_limit     = 120
+        node.winrm.retry_delay     = 10
+        node.vm.boot_timeout       = host['boot_timeout'] || 1200
+      else
+        node.ssh.username = host['ssh_username'] if host.key?('ssh_username')
+        node.ssh.password = host['ssh_password'] if host.key?('ssh_password')
+      end
+
+      # --- Networking ---
+      net_type = USE_BRIDGE ? :public_network : :private_network
+      node.vm.network net_type, **network_options(host, USE_BRIDGE)
+      configure_forwarded_ports(node.vm, host)
+
+      # --- Shared folders ---
+      if windows_box?(box_name)
+        # Disable Vagrant's default /vagrant auto-mount.
+        node.vm.synced_folder '.', '/vagrant', disabled: true
+        
+        # Mount the provisioning directory via the VirtualBox guest driver (Read-Only).
+        configure_win_provisioning_share(node, host)
+        
+      else
+        configure_synced_folders(node.vm, host)
+      end
+
+      # --- Provider settings ---
+      node.vm.provider :virtualbox do |vb|
+        vb.name   = "t02_#{host['name']}"
+        vb.memory = host['memory'] if host.key?('memory')
+        vb.cpus   = host['cpus']   if host.key?('cpus')
+        vb.customize ['modifyvm', :id, '--groups', '/t02']
+
+        vb.gui = true if host['gui']
+
+        if windows_box?(box_name)
+          vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
+          vb.customize ['modifyvm', :id, '--natdnsproxy1',        'on']
+		  vb.customize ['modifyvm', :id, '--nested-hw-virt', 'on']
+        end
+      end
+
+      # --- Extra disks ---
+      if host.key?('disks')
+        host['disks'].each do |disk|
+          node.vm.disk :disk, name: disk['name'], size: disk['size']
+        end
+      end
+
+      # --- Provisioning ---
+      is_win  = windows_box?(box_name)
+      scripts = host['noprovisioning'] ? [] : find_provisioning_scripts(host['name'], host['stagedprovisioning'])
+
+      # Linux: upload the provisioning directory once via SFTP.
+      # Windows: scripts execute in-place from the VirtualBox shared folder --
+      # no file transfer needed.
+      if !is_win && host['localprovisioning']
+        node.vm.provision 'file',
+          source:      PROVISIONING_SCRIPT_DIR,
+          destination: '/tmp/provisioning'
+      end
+
+      # Windows localprovisioning safety net: copy from the shared-folder
+      if is_win && host['localprovisioning']
+        node.vm.provision 'copy-provisioning', type: 'shell' do |s|
+          s.inline = [
+            "New-Item -ItemType Directory -Path '#{WIN_PROVISIONING_LOCAL}' -Force | Out-Null",
+            "Copy-Item -Path '#{WIN_PROVISIONING_SHARE}\\*' -Destination '#{WIN_PROVISIONING_LOCAL}' -Recurse -Force",
+            "Write-Host '[INFO ] Provisioning files copied to local disk.'"
+          ].join('; ')
+          s.privileged = true
+        end
+      end
+
+      if scripts.any?
+        scripts.each_with_index do |script_info, index|
+          is_last = (index == scripts.length - 1)
+          node.vm.provision script_info[:name], type: 'shell' do |s|
+            if is_win
+              # Invoke the script from WIN_PROVISIONING_LOCAL using s.inline.
+              s.path = script_info[:path]
+            else
+              s.path = script_info[:path]
+              s.args = host['provision_args'] || []
+            end
+            s.privileged = true if is_win
+            s.reboot     = true if is_win && !is_last
+          end
+        end
+      elsif !host['noprovisioning']
+        node.vm.post_up_message =
+          "WARNING: No provisioning script found for '#{host['name']}'. " \
+          "Expected: #{host['name']}.sh/ps1"
+      end
+
+    end
+  end
+end

@@ -1,0 +1,138 @@
+# --- ONSITE VERSION --------------------------------------------------------
+#   Vagrantfile will automatically select the active NIC for a bridged adapter
+
+# --- AVAILABLE KEYS --------------------------------------------------------
+#
+# GENERAL
+#   name            (required)  Hostname, also used to find provisioning script
+#   box             (optional)  Base box, default: bento/almalinux-10.1
+#
+# RESOURCES         (optional, defaults: 1024 MB / 1 CPU)
+#   memory                      RAM in MB  (e.g. 512, 2048)
+#   cpus                        Number of virtual CPUs
+#
+# NETWORKING        (optional)
+#   ip                          Static IP — omit for DHCP
+#   netmask                     Default: 255.255.255.0
+#   intnet: 'name'              Internal network — isolated, VM-to-VM only.
+#                               VMs sharing the same name can communicate.
+#                               Use for local testing without physical network.
+#   bridge: true                Bridged adapter — VM appears as real device on
+#                               physical network/VLAN. Use for multi-machine
+#                               physical setups. Takes priority over intnet.
+#
+# PROVISIONING      (optional)
+#   stagedprovisioning: true    Run multiple scripts with reboots in between.
+#                               Scripts: provisioning/<n>-stage1.ps1, -stage2.ps1 ...
+#                               Omit for single script: provisioning/<n>.sh / .ps1
+#
+#   localprovisioning: true     Windows DC hybrid mode: the provisioning directory
+#                               is mounted read-only via VirtualBox shared folder at
+#                               C:\vagrant-provisioning, then copied to C:\provisioning
+#                               before the first stage runs.  This protects against
+#                               the vboxsf service racing against boot after DC
+#                               promotion.
+#                               Omit (or false) for plain shared-folder access:
+#                               provisioning is mounted directly at C:\provisioning
+#                               and read live from the host -- no file transfer.
+
+# --- Linux servers ---------------------------------------------------------
+- name: "database"
+  # VLAN 33
+  ip: "192.168.132.195"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+- name: "webserver"
+  # VLAN 33
+  ip: "192.168.132.196"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+- name: "nextcloud-database"
+  # VLAN 33
+  ip: "192.168.132.198"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+- name: "nextcloud-server"
+  # VLAN 33
+  ip: "192.168.132.197"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+- name: "reverse-proxy"
+  # VLAN 11
+  ip: "192.168.132.234"
+  netmask: "255.255.255.248"
+  gateway: "192.168.132.233"
+
+- name: "tftp"
+  # VLAN 1
+  ip: "192.168.132.227"
+  netmask: "255.255.255.248"
+  gateway: "192.168.132.225"
+
+- name: "storage"
+  # VLAN 33
+  ip: "192.168.132.199"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+  memory: 2048
+  cpus: 2
+  disks:
+    # OS Disks (worden /dev/sdb en /dev/sdc)
+    - name: "os-disk-1"
+      size: "40GB"
+    - name: "os-disk-2"
+      size: "40GB"
+    # Storage Disks (worden /dev/sdd, /dev/sde, /dev/sdf, /dev/sdg)
+    - name: "data-disk-1"
+      size: "128GB"
+    - name: "data-disk-2"
+      size: "128GB"
+    - name: "data-disk-3"
+      size: "128GB"
+    - name: "data-disk-4"
+      size: "128GB"
+
+- name: "database2"
+  # VLAN 33
+  ip: "192.168.132.200"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+- name: "haproxy"
+  # VLAN 33
+  ip: "192.168.132.201"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+
+# --- Windows machines ---------------------------------------------------------
+- name: "windowsdc"
+  box: "gusztavvargadr/windows-server-2022-standard-core"
+  # VLAN 33
+  ip: "192.168.132.194"
+  netmask: "255.255.255.224"
+  gateway: "192.168.132.193"
+  memory: 2048
+  cpus: 2
+  stagedprovisioning: true
+  localprovisioning: true
+
+- name: "winclient"
+  nohostname: true
+  noprovisioning: true
+  box: "gusztavvargadr/windows-10"
+  # VLAN 22 (DHCP)
+  memory: 4096
+  cpus: 2
+
+# --- Linux clients ---------------------------------------------------------
+- name: "rockyclient"
+  box: "bento/rockylinux-9"
+  ip: "192.168.132.131"
+  netmask: "255.255.255.192"
+  gateway: "192.168.132.129"
+  memory: 4096
+  cpus: 2

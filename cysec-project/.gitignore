@@ -1,0 +1,5 @@
+# OS-based files
+*.DS_Store
+*.vdi
+*.ISO
+*.VBOX

@@ -1,0 +1,10 @@
+# Sources
+
+| Source                          | Description                                         | Link                                                                                                                                                                  |
+| ------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| National Vulnerability Database | CVE-2025-59287 Detail                               | [Click here](https://nvd.nist.gov/vuln/detail/CVE-2025-59287)                                                                                                         |
+| Picus Security                  | CVE-2025-59287 Explained                            | [Click here](https://www.picussecurity.com/resource/blog/cve-2025-59287-explained-wsus-unauthenticated-rce-vulnerability)                                             |
+| Windows Forum                   | Urgent WSUS Patch for CVE-2025-59287 RCE or Isolate | [Click here](https://windowsforum.com/threads/urgent-wsus-patch-for-cve-2025-59287-rce-or-isolate.386253/)                                                            |
+| hawktrace                       | Proof of Conceptcode                                | [Click here](https://hawktrace.com/blog/cve-2025-59287-unauth/)                                                                                                       |
+| Eye Security                    | Report after critical customer alert                | [Click here](https://research.eye.security/wsus-deserialization-exploit-in-the-wild-cve-2025-59287/)                                                                  |
+| Bitdefender                     | Technical advisory                                  | [Click here](https://www.bitdefender.com/en-us/blog/businessinsights/bitdefender-advisory-critical-unauthenticated-rce-windows-server-update-services-cve-2025-59287) |

@@ -1,0 +1,69 @@
+hostname R1
+!
+no ip domain lookup
+!
+! =========================
+! DHCP (Clients VLAN 22)
+! =========================
+!
+ip dhcp excluded-address 192.168.132.129
+!
+ip dhcp pool EMPLOYEES
+ network 192.168.132.128 255.255.255.192
+ default-router 192.168.132.129
+ dns-server 192.168.132.194
+!
+! =========================
+! NAT CONFIG (PAT)
+! =========================
+!
+access-list 1 permit 192.168.132.128 0.0.0.63
+access-list 1 permit 192.168.132.192 0.0.0.31
+access-list 1 permit 192.168.132.232 0.0.0.7
+access-list 1 permit 192.168.132.224 0.0.0.7
+!
+ip nat inside source list 1 interface GigabitEthernet 0/1 overload
+!
+! =========================
+! INTERFACES
+! =========================
+!
+interface GigabitEthernet 0/1
+ description UPLINK TO CLASS NETWORK
+ ip address dhcp
+ ip nat outside
+ no shutdown
+!
+! Physical interface for VLAN 1 (Native/Management)
+interface GigabitEthernet 0/0
+ description LAN TRUNK - VLAN 1 UNTAGGED (MANAGEMENT)
+ ip address 192.168.132.225 255.255.255.248
+ ip nat inside
+ no shutdown
+!
+interface GigabitEthernet 0/0.11
+ encapsulation dot1Q 11
+ ip address 192.168.132.233 255.255.255.248
+ ip nat inside
+!
+interface GigabitEthernet 0/0.22
+ encapsulation dot1Q 22
+ ip address 192.168.132.129 255.255.255.192
+ ip nat inside
+!
+interface GigabitEthernet 0/0.33
+ encapsulation dot1Q 33
+ ip address 192.168.132.193 255.255.255.224
+ ip nat inside
+!
+! =========================
+! ROUTING
+! =========================
+!
+ip route 0.0.0.0 0.0.0.0 172.22.255.254
+!
+line vty 0 4
+ login local
+ transport input ssh
+!
+end
