@@ -8,7 +8,7 @@
 
 Jelle Robyn (@jelle-rbn)
 
-Marc De Potter (@github-username)
+Marc De Potter (@MarcDePotter)
 
 ---
 
