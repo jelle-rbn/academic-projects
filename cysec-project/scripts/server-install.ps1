@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------------------
-# Variabelen (PADEN CONTROLEREN!)
+# Variables (CHECK PATHS!)
 # ----------------------------------------------------------------------------------------
  
 # VM configs
@@ -27,7 +27,7 @@ $PICKLE_SCRIPT = "$env:USERPROFILE\CySec-NPE\scripts\setup-pickle.ps1"
 $EXPLOIT_SCRIPT = "$env:USERPROFILE\CySec-NPE\scripts\exploit-python.py"
  
 # ----------------------------------------------------------------------------------------
-# 1. Opruimen & netwerk voorbereiden
+# 1. Cleanup & network preparation
 # ----------------------------------------------------------------------------------------
  
 Write-Host "Shutting down and removing any existing VM's..." -ForegroundColor Cyan
@@ -46,7 +46,7 @@ VBoxManage natnetwork add --netname "$NET_NAME" --network "$NET_IP" --enable --d
 Write-Host "[OK] NAT-Network '$NET_NAME' created" -ForegroundColor Green
  
 # ----------------------------------------------------------------------------------------
-# 2. Klonen en registreren
+# 2. Cloning and registering
 # ----------------------------------------------------------------------------------------
  
 Write-Host "Cloning VDI's en registrating VM's..." -ForegroundColor Cyan
@@ -71,7 +71,7 @@ Create-LabVM $TARGET_NAME $TARGET_DIR $MASTER_TARGET_VDI "Windows2022_64"
 Create-LabVM $KALI_NAME $KALI_DIR $MASTER_KALI_VDI "Debian_64"
  
 # ----------------------------------------------------------------------------------------
-# 3. Starten & configureren
+# 3. Starting & configuring
 # ----------------------------------------------------------------------------------------
  
 Write-Host "Starting and configuring machines..." -ForegroundColor Cyan
@@ -91,7 +91,7 @@ while ((Get-Date) -lt $TargetTime) {
     Start-Sleep -Seconds 1
 }
 
-Write-Host "`r[i] Proceeding to next step...                            " -ForegroundColor Yellow
+Write-Host "`r[i] Proceeding to next step..." -ForegroundColor Yellow
  
 # Windows
 Write-Host "Setting static IP on Windows ($WIN_ADDR)..." -ForegroundColor Cyan
@@ -115,7 +115,7 @@ VBoxManage guestcontrol "$KALI_NAME" run --username kali --password kali --exe "
 # 4. Payload & setup
 # ----------------------------------------------------------------------------------------
  
-# Uploaden scripts
+# Uploading scripts
 Write-Host "`nUploading scripts to machines..." -ForegroundColor Cyan
 VBoxManage guestcontrol "$TARGET_NAME" copyto "$WSUS_SCRIPT" "C:\setup-wsus.ps1" --username "$WIN_USER" --password "$WIN_PASS"
 VBoxManage guestcontrol "$TARGET_NAME" copyto "$PICKLE_SCRIPT" "C:\setup-pickle.ps1" --username "$WIN_USER" --password "$WIN_PASS"
@@ -133,7 +133,7 @@ foreach ($s in $setups) {
 }
  
 # ----------------------------------------------------------------------------------------
-# 5a. Wachten tot alle services zeker opgestart zijn op target VM
+# 5a. Waiting for all services to start on target VM
 # ----------------------------------------------------------------------------------------
 
 $TotalMinutes = 10
@@ -143,14 +143,14 @@ while ((Get-Date) -lt $EndTime) {
     $TimeLeft = $EndTime - (Get-Date)
     $FormatTime = "{0:mm\:ss}" -f $TimeLeft
     
-    # De `r zorgt dat de cursor naar het begin van de regel springt
+    # The `r resets the cursor to the beginning of the line
     Write-Host "`r[i] Time remaining: $FormatTime on $TARGET_NAME... " -NoNewline -ForegroundColor Yellow
     
     Start-Sleep -Seconds 1
 }
 
 # ----------------------------------------------------------------------------------------
-# 5b. Netwerk check
+# 5b. Network check
 # ----------------------------------------------------------------------------------------
  
 Write-Host "`nVerifying network status..." -ForegroundColor Cyan
@@ -171,10 +171,10 @@ $KALI_IP = Extract-IP $kaliRaw
 
 
 # ----------------------------------------------------------------------------------------
-# 6. Overzicht labomgeving
+# 6. Lab environment overview
 # ----------------------------------------------------------------------------------------
  
-# Controleer Windows IP, Kali IP en of poort 8000 daadwerkelijk open staat
+# Verify Windows IP and Kali IP
 if ($WIN_IP -and $KALI_IP) {
     Write-Host "`n[SUCCESS] Lab is fully operational!" -ForegroundColor Green
     Write-Host "-------------------------------------------" -ForegroundColor Green
@@ -186,7 +186,7 @@ else {
     Write-Host "`n[FAILED] Lab is not (yet) fully operational!" -ForegroundColor Red
     Write-Host "-------------------------------------------" -ForegroundColor Red
     
-    # Specifieke foutmeldingen debugging:
+    # Specific error messages for debugging:
     if (-not $WIN_IP) { Write-Host "[-] Missing: Windows IP (Guest Additions issue?)" -ForegroundColor Red }
     if (-not $KALI_IP) { Write-Host "[-] Missing: Kali IP (Guest Additions issue?)" -ForegroundColor Red }
     
