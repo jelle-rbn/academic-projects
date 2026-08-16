@@ -1,14 +1,14 @@
-# Dit script installeert en configureert WSUS voor Windows Server
+# This script installs and configures WSUS for Windows Server
 
-# Variabelen
+# Variables
 $IP = "192.168.56.20"
-$Gateway = "192.168.56.1" # Standaard gateway voor VirtualBox NAT-netwerken
+$Gateway = "192.168.56.1" # Default gateway for VirtualBox NAT networks
 $DNS = "8.8.8.8"
 
 # Logging
 Start-Transcript -Path C:\setup-log.txt
 
-# Netwerk & internet
+# Network & internet
 New-NetIPAddress -InterfaceAlias "Ethernet" `
 -IPAddress "$IP" `
 -PrefixLength 24 `
@@ -20,13 +20,13 @@ Set-DnsClientServerAddress  `
   -ServerAddresses "$DNS"  `
   -ErrorAction SilentlyContinue
 
-# Firewall openzetten voor poort 8530
+# Open firewall for port 8530
 New-NetFirewallRule -DisplayName "WSUS 8530" -Direction Inbound -Protocol TCP -LocalPort 8530 -Action Allow
 
-# Firewall openzetten voor ICMPv4 (Ping)
+# Open firewall for ICMPv4 (Ping)
 Enable-NetFirewallRule -Name "FPS-ICMP4-ERQ-In"
 
-# WSUS installeren
+# Install WSUS
 Install-WindowsFeature -Name UpdateServices -IncludeManagementTools
 
 # WSUS directory
@@ -35,7 +35,7 @@ New-Item -ItemType Directory -Path C:\WSUS -Force
 # Post install
 & "C:\Program Files\Update Services\Tools\wsusutil.exe" postinstall CONTENT_DIR=C:\WSUS
 
-# Service starten
+# Start service
 Start-Service WsusService
 
 # Check
