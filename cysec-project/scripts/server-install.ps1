@@ -13,11 +13,11 @@ $KALI_ADDR = "192.168.56.20"
 $WIN_USER = "Administrator"
 $WIN_PASS = "P@ssw0rd!"
  
-# Paden "Master VDI" bestanden
+# Paths to "Master VDI" files
 $MASTER_TARGET_VDI = "$env:USERPROFILE\CySec-NPE\WSUS-Target.vdi"
 $MASTER_KALI_VDI = "$env:USERPROFILE\CySec-NPE\kali-linux-2026.1-virtualbox-amd64.vdi"
  
-# Werkmappen
+# Working directories
 $TARGET_DIR = "$env:USERPROFILE\VirtualBox VMs\$TARGET_NAME"
 $KALI_DIR = "$env:USERPROFILE\VirtualBox VMs\$KALI_NAME"
  
