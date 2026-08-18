@@ -6,9 +6,10 @@
 
 ## Team Members
 
-Jelle Robyn (@jelle-rbn)
-
-Marc De Potter (@MarcDePotter)
+| Name           | GitHub username                                 |
+| :------------- | :---------------------------------------------- |
+| Jelle Robyn    | [jelle-rbn](https://github.com/jelle-rbn)       |
+| Marc De Potter | [MarcDePotter](https://github.com/MarcDePotter) |
 
 ---
 
