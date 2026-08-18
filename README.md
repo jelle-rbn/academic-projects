@@ -6,7 +6,7 @@ The focus of these projects is to bridge theoretical concepts with real-world in
 
 ## Featured Projects
 
-| Project Name | Key Technologies / Topics | Description |
-| :--- | :--- | :--- |
-| **[System Engineering Project](./system-engineering-project)** | Vagrant, Linux/Windows, DB, networking, scripting | Automated enterprise-style infrastructure setup. |
-| **[Cybersecurity & Virtualization](./cysec-npe)** | Linux/Windows, WSUS, RCE, VBoxManage, Python, Reverse Shell | PoC insecure deserialization (CVE-2025-59287). |
+| Project Name                                                   | Key Technologies / Topics                                   | Description                                      |
+| :------------------------------------------------------------- | :---------------------------------------------------------- | :----------------------------------------------- |
+| **[System Engineering Project](./system-engineering-project)** | Vagrant, Linux/Windows, DB, networking, scripting           | Automated enterprise-style infrastructure setup. |
+| **[Cybersecurity & Virtualization](./cysec-project)**          | Linux/Windows, WSUS, RCE, VBoxManage, Python, Reverse Shell | PoC insecure deserialization (CVE-2025-59287).   |
